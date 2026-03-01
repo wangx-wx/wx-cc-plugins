@@ -14,6 +14,10 @@ import os
 import sys
 from typing import Any, Dict, List
 
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 LIB_DIR = os.path.join(SCRIPT_DIR, "lib")
 
@@ -73,7 +77,7 @@ def run_p3c_check(source_path: str) -> str:
     import subprocess
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_str = proc.stdout.decode("utf-8", errors="replace")
-    stderr_str = proc.stderr.decode("gbk", errors="replace")
+    stderr_str = proc.stderr.decode("utf-8", errors="replace")
 
     if stderr_str:
         for line in stderr_str.strip().splitlines()[:5]:
