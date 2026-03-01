@@ -15,6 +15,7 @@
     "mcpServers": "./mcp.json",
     "skills": [
         "./skills/skill-creator",
-        "./skills/mcp-builder"
+        "./skills/mcp-builder",
+        "./skills/p3c-reviewer"
     ]
 }
