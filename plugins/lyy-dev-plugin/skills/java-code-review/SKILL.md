@@ -20,14 +20,14 @@ allowed-tools:
 ## 阶段2 并行启动 4 个 Review Agents
 使用`Task Tool`同时启动4个Agents，分别独立审查变更。每一个代理都有`Bash(git diff *)`的权限，将<source>分支</source>、<target>分支</target>、本地仓库地址信息完整的传递给子代理
 
-### Agent 1: P3C 审查
+### Agent 1: P3C 检查
 `Agent 1` 拥有`Bash(python *diff_scan.py*)`权限
 执行脚本，获取P3C审查报告，将报告的结果返回
 ```bash
 python <skill-path>/scripts/diff_scan.py <repo-path> --source <source-branch> --target <target-branch>W
 ```
 
-### Agent 2: 基础规范审查
+### Agent 2: 基础规范检查
 1. 执行`git diff <source>分支</source> <target>分支</target> -- "*.java" ":(exclude)*.md"`命令获取所有变更的Java文件
 2. 无变更文件则返回`[]`，对于所有变更文件执行规范检查，检查内容仅限于[references/base-rules.md](references/base-rules.md)
 3. 最后返回检查报告，报告格式参考：[assets/example-agent-output.md](assets/example-agent-output.md)
