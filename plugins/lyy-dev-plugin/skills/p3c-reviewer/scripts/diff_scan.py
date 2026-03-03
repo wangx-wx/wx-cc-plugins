@@ -10,10 +10,13 @@
 import argparse
 import glob
 import json
+import logging
 import os
 import subprocess
 import sys
 from typing import Any, Dict, List, Tuple
+
+logger = logging.getLogger(__name__)
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -21,6 +24,18 @@ if sys.platform == "win32":
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 LIB_DIR = os.path.join(SCRIPT_DIR, "lib")
+
+
+def _decode_stderr(data: bytes) -> str:
+    """解码子进程 stderr 输出。
+
+    Windows 下 Git/Java 的 stderr 编码不确定，先尝试 UTF-8，
+    失败后 fallback 到系统默认编码（通常为 GBK）。
+    """
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode(sys.getdefaultencoding(), errors="replace")
 
 P3C_RULESETS = [
     "rulesets/java/ali-comment.xml",
@@ -43,6 +58,28 @@ PRIORITY_TO_BLOCK_LEVEL = {
     4: "Minor",
     5: "Info",  # 可选
 }
+
+
+# ---------------------------------------------------------------------------
+# 环境前置检查
+# ---------------------------------------------------------------------------
+
+def validate_java_available() -> None:
+    """验证 Java 运行环境可用。
+
+    Raises:
+        SystemExit: java 未安装或不在 PATH 中
+    """
+    try:
+        proc = subprocess.run(
+            ["java", "-version"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if proc.returncode != 0:
+            raise SystemExit("java -version 返回非零退出码，请检查 Java 安装")
+    except FileNotFoundError:
+        raise SystemExit("java 命令未找到，请确认已安装 JDK/JRE 并加入 PATH")
 
 
 # ---------------------------------------------------------------------------
@@ -88,7 +125,7 @@ def validate_branch_exists(repo_path: str, branch: str) -> None:
     except FileNotFoundError:
         raise SystemExit("git 命令未找到，请确认已安装 Git 并加入 PATH")
     if proc.returncode != 0:
-        stderr_str = proc.stderr.decode("gbk", errors="replace").strip()
+        stderr_str = _decode_stderr(proc.stderr).strip()
         raise SystemExit(f"分支不存在: {branch}\n  {stderr_str}")
 
 
@@ -125,12 +162,12 @@ def get_diff_file_statuses(
     except FileNotFoundError:
         raise SystemExit("git 命令未找到，请确认已安装 Git 并加入 PATH")
 
-    stderr_str = proc.stderr.decode("gbk", errors="replace").strip()
+    stderr_str = _decode_stderr(proc.stderr).strip()
     if proc.returncode != 0:
         raise SystemExit(f"git diff 执行失败:\n  {stderr_str}")
     if stderr_str:
         for line in stderr_str.splitlines()[:5]:
-            print(f"  [WARN] {line}", file=sys.stderr)
+            logger.warning("git diff stderr: %s", line)
 
     stdout_str = proc.stdout.decode("utf-8", errors="replace")
     results: List[Tuple[str, str]] = []
@@ -180,10 +217,7 @@ def resolve_absolute_paths(
         if os.path.isfile(abs_path):
             absolute_paths.append(abs_path)
         else:
-            print(
-                f"  [WARN] 文件在工作区中不存在（可能未切换到 source 分支）: {rel_path}",
-                file=sys.stderr,
-            )
+            logger.warning("文件在工作区中不存在（可能未切换到 source 分支）: %s", rel_path)
     return absolute_paths
 
 
@@ -207,20 +241,25 @@ def build_classpath() -> str:
 # PMD 执行（来自 batch_scan_files.py）
 # ---------------------------------------------------------------------------
 
-def run_p3c_check(source_path: str) -> str:
-    """对单个文件执行 PMD 检查。
+def run_p3c_check(source_paths: List[str], classpath: str) -> str:
+    """对一组文件执行 PMD 检查。
+
+    PMD 的 -d 参数支持逗号分隔的多路径，一次 JVM 启动完成全部扫描。
 
     Args:
-        source_path: 文件路径
+        source_paths: 文件路径列表
+        classpath: 预构建的 classpath 字符串
 
     Returns:
         JSON 格式的检查报告字符串
+
+    Raises:
+        SystemExit: PMD 执行出现非预期错误
     """
-    classpath = build_classpath()
     cmd = [
         "java", "-cp", classpath,
         "net.sourceforge.pmd.PMD",
-        "-d", source_path,
+        "-d", ",".join(source_paths),
         "-R", ",".join(P3C_RULESETS),
         "-f", "json",
         "--encoding", "UTF-8",
@@ -228,47 +267,19 @@ def run_p3c_check(source_path: str) -> str:
 
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_str = proc.stdout.decode("utf-8", errors="replace")
-    stderr_str = proc.stderr.decode("utf-8", errors="replace")
+    stderr_str = _decode_stderr(proc.stderr)
 
     if stderr_str:
         for line in stderr_str.strip().splitlines()[:5]:
-            print(f"  [WARN] {line}", file=sys.stderr)
+            logger.warning("PMD stderr: %s", line)
+
+    # PMD 退出码约定: 0=无违规, 4=有违规, 其他=执行错误
+    if proc.returncode not in (0, 4):
+        raise SystemExit(
+            f"PMD 执行失败 (exit code {proc.returncode}):\n  {stderr_str[:500]}"
+        )
 
     return stdout_str
-
-
-# ---------------------------------------------------------------------------
-# JSON 合并（来自 batch_scan_files.py）
-# ---------------------------------------------------------------------------
-
-def merge_reports(json_contents: List[str]) -> Dict[str, Any]:
-    """合并多个 JSON 报告为一个。
-
-    Args:
-        json_contents: JSON 报告字符串列表
-
-    Returns:
-        合并后的 JSON 对象
-    """
-    merged_files: List[Dict[str, Any]] = []
-    seen_files: set = set()
-
-    for json_content in json_contents:
-        if not json_content.strip():
-            continue
-
-        try:
-            data = json.loads(json_content)
-            files = data.get("files", [])
-            for file_entry in files:
-                filename = file_entry.get("filename")
-                if filename and filename not in seen_files:
-                    seen_files.add(filename)
-                    merged_files.append(file_entry)
-        except json.JSONDecodeError:
-            continue
-
-    return {"files": merged_files}
 
 
 # ---------------------------------------------------------------------------
@@ -372,7 +383,8 @@ def diff_scan(
     Returns:
         简化格式的违规项列表
     """
-    # 1. 验证 Git 仓库
+    # 1. 环境与仓库验证
+    validate_java_available()
     repo_abs_path = validate_git_repo(repo_path)
     validate_branch_exists(repo_abs_path, source)
     validate_branch_exists(repo_abs_path, target)
@@ -385,16 +397,20 @@ def diff_scan(
     if not absolute_paths:
         return []
 
-    # 3. 执行 P3C 检查
-    json_contents = []
-    for file_path in absolute_paths:
-        print(f"  [扫描] {os.path.basename(file_path)} ...", file=sys.stderr)
-        json_content = run_p3c_check(file_path)
-        json_contents.append(json_content)
+    # 3. 构建 classpath 并批量执行 P3C 检查
+    classpath = build_classpath()
+    file_count = len(absolute_paths)
+    logger.info("共 %d 个文件待扫描", file_count)
+    json_content = run_p3c_check(absolute_paths, classpath)
 
-    # 4. 合并并过滤报告
-    merged_data = merge_reports(json_contents)
-    filtered_data = filter_by_priority(merged_data, max_priority)
+    # 4. 解析并过滤报告
+    try:
+        report_data = json.loads(json_content) if json_content.strip() else {"files": []}
+    except json.JSONDecodeError:
+        logger.warning("PMD 输出无法解析为 JSON")
+        report_data = {"files": []}
+
+    filtered_data = filter_by_priority(report_data, max_priority)
 
     # 5. 转换输出格式
     return transform_to_output_format(filtered_data, repo_abs_path)
@@ -430,6 +446,11 @@ def build_argument_parser() -> argparse.ArgumentParser:
         choices=[1, 2, 3, 4, 5],
         help="最大优先级，默认 2（过滤掉 2 级以上的违规）",
     )
+    parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="输出 DEBUG 级别日志（默认 INFO）",
+    )
     return parser
 
 
@@ -438,6 +459,11 @@ def main() -> None:
     parser = build_argument_parser()
     args = parser.parse_args()
 
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(levelname)s: %(message)s",
+    )
+
     results = diff_scan(args.repo, args.source, args.target, args.priority)
 
     if not results:
@@ -445,7 +471,7 @@ def main() -> None:
         return
 
     print(json.dumps(results, indent=2, ensure_ascii=False))
-    print(f"\n总违规数：{len(results)}", file=sys.stderr)
+    logger.info("总违规数：%d", len(results))
 
 
 if __name__ == "__main__":
