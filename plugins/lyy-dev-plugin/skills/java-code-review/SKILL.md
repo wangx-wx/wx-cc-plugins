@@ -24,7 +24,7 @@ allowed-tools:
 `Agent 1` 拥有`Bash(python *diff_scan.py*)`权限
 执行脚本，获取P3C审查报告，将报告的结果返回
 ```bash
-python <skill-path>/scripts/diff_scan.py <repo-path> --source <source-branch> --target <target-branch>W
+python <skill-path>/scripts/diff_scan.py <repo-path> --source <source-branch> --target <target-branch>
 ```
 
 ### Agent 2: 基础规范检查

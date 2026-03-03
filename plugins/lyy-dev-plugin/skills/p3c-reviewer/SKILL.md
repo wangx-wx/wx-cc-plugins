@@ -27,19 +27,12 @@ allowed-tools:
 
 **步骤 2：获取变更文件**
 
+执行脚本，获取P3C审查报告，将报告的结果返回
 ```bash
-python <skill-path>/scripts/git_diff_files.py <repo-path> --source <source-branch> --target <target-branch> --output-format json
+python <skill-path>/scripts/diff_scan.py <repo-path> --source <source-branch> --target <target-branch>
 ```
 
-展示变更文件清单，让用户确认是否继续扫描。
-
-**步骤 3：扫描变更文件**
-
-```bash
-python <skill-path>/scripts/batch_scan_files.py <file1> <file2> ...
-```
-
-默认优先级为 3（输出 Blocker、Critical、Major 级违规）。仅当用户明确要求调整优先级时才添加 `--priority <level>` 参数。
+默认优先级为 2（输出 Blocker、Critical、Major 级违规）。仅当用户明确要求调整优先级时才添加 `--priority <level>` 参数。
 
 ### 2. 全量审查（用户明确要求时）
 
@@ -59,8 +52,3 @@ python <skill-path>/scripts/scan_project.py <project-dir>
 将 JSON 结果转为 Markdown 表格报告。报告模板参见 [references/example-output.md](references/example-output.md)。
 
 若无违规，输出"未发现违规项"。
-
-## 参考资源
-
-- 报告输出模板：[references/example-output.md](references/example-output.md) —— 生成审查报告时参考
-- P3C 规则速查表：[references/p3c-rules.md](references/p3c-rules.md) —— 当需要解释具体规则含义时加载
