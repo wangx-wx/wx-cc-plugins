@@ -16,6 +16,7 @@
     "skills": [
         "./skills/skill-creator",
         "./skills/mcp-builder",
-        "./skills/p3c-reviewer"
+        "./skills/p3c-reviewer",
+        "./skills/java-code-review"
     ]
 }
