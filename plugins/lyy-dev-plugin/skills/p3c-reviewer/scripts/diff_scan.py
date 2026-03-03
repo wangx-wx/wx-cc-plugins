@@ -26,16 +26,18 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 LIB_DIR = os.path.join(SCRIPT_DIR, "lib")
 
 
-def _decode_stderr(data: bytes) -> str:
-    """解码子进程 stderr 输出。
+def _decode_output(data: bytes) -> str:
+    """解码子进程输出（stdout/stderr 通用）。
 
-    Windows 下 Git/Java 的 stderr 编码不确定，先尝试 UTF-8，
-    失败后 fallback 到系统默认编码（通常为 GBK）。
+    Windows 下 Git/Java 的输出编码不确定，按优先级尝试：
+    UTF-8 → GBK → 系统默认编码（带 replace）。
     """
-    try:
-        return data.decode("utf-8")
-    except UnicodeDecodeError:
-        return data.decode(sys.getdefaultencoding(), errors="replace")
+    for encoding in ("utf-8", "gbk"):
+        try:
+            return data.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return data.decode(sys.getdefaultencoding(), errors="replace")
 
 P3C_RULESETS = [
     "rulesets/java/ali-comment.xml",
@@ -125,7 +127,7 @@ def validate_branch_exists(repo_path: str, branch: str) -> None:
     except FileNotFoundError:
         raise SystemExit("git 命令未找到，请确认已安装 Git 并加入 PATH")
     if proc.returncode != 0:
-        stderr_str = _decode_stderr(proc.stderr).strip()
+        stderr_str = _decode_output(proc.stderr).strip()
         raise SystemExit(f"分支不存在: {branch}\n  {stderr_str}")
 
 
@@ -162,14 +164,14 @@ def get_diff_file_statuses(
     except FileNotFoundError:
         raise SystemExit("git 命令未找到，请确认已安装 Git 并加入 PATH")
 
-    stderr_str = _decode_stderr(proc.stderr).strip()
+    stderr_str = _decode_output(proc.stderr).strip()
     if proc.returncode != 0:
         raise SystemExit(f"git diff 执行失败:\n  {stderr_str}")
     if stderr_str:
         for line in stderr_str.splitlines()[:5]:
             logger.warning("git diff stderr: %s", line)
 
-    stdout_str = proc.stdout.decode("utf-8", errors="replace")
+    stdout_str = _decode_output(proc.stdout)
     results: List[Tuple[str, str]] = []
     for line in stdout_str.strip().splitlines():
         if not line.strip():
@@ -257,7 +259,9 @@ def run_p3c_check(source_paths: List[str], classpath: str) -> str:
         SystemExit: PMD 执行出现非预期错误
     """
     cmd = [
-        "java", "-cp", classpath,
+        "java",
+        "-Dfile.encoding=UTF-8",
+        "-cp", classpath,
         "net.sourceforge.pmd.PMD",
         "-d", ",".join(source_paths),
         "-R", ",".join(P3C_RULESETS),
@@ -265,9 +269,14 @@ def run_p3c_check(source_paths: List[str], classpath: str) -> str:
         "--encoding", "UTF-8",
     ]
 
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout_str = proc.stdout.decode("utf-8", errors="replace")
-    stderr_str = _decode_stderr(proc.stderr)
+    env = os.environ.copy()
+    env["JAVA_TOOL_OPTIONS"] = "-Dfile.encoding=UTF-8"
+
+    proc = subprocess.run(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env
+    )
+    stdout_str = _decode_output(proc.stdout)
+    stderr_str = _decode_output(proc.stderr)
 
     if stderr_str:
         for line in stderr_str.strip().splitlines()[:5]:
