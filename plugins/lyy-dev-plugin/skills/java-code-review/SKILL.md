@@ -20,7 +20,6 @@ allowed-tools:
    - **source 分支**：默认当前分支
    - **target 分支**：默认 `origin/master`
    - **仓库路径**：默认当前工作目录
-4. 执行 `git fetch origin` 确保远程分支信息是最新的
 
 > 后续阶段中，`{source}` 代表用户确认的 source 分支，`{target}` 代表用户确认的 target 分支，`{repo-path}` 代表仓库路径。
 
@@ -29,6 +28,8 @@ allowed-tools:
 使用 `Agent` 工具同时启动 4 个子代理（`subagent_type: "general-purpose"`），每个子代理独立完成各自的检查任务并返回结果，主 Agent 不参与具体的检查过程，仅负责收集结果。每个子代理拥有 Bash、Read、Grep、Glob 等工具权限。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
 
 每个子代理返回的结果是 JSON 数组，格式遵循 [assets/example-agent-output.md](assets/example-agent-output.md) 中定义的 schema。无问题时返回空数组 `[]`。
+
+> **规则约束**：每个子代理必须先读取对应的参考规则文件，仅使用文件中定义的规则进行检查，返回结果中的 ruleId 必须与参考文件中的编号完全一致。
 
 ### Agent 1：P3C 静态分析（子代理独立完成）
 
@@ -46,9 +47,10 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 
 1. 执行 `git diff --name-only {target}...{source} -- "*.java"` 获取变更的 Java 文件列表
 2. 若无变更文件则返回 `[]`
-3. 对每个变更文件，使用 Read 工具读取完整内容（因为 BASE-00005 大型函数、BASE-00006 大型文件等规则需要完整文件上下文），同时参考 diff 输出确定哪些是新增/修改的代码段
-4. 按照 [references/base-rules.md](references/base-rules.md) 中的规则逐项检查
-5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+3. 使用 Read 工具读取 `<skill-path>/references/base-rules.md`，获取完整的规则列表
+4. 对每个变更文件，使用 Read 工具读取完整内容（因为大型函数、大型文件等规则需要完整文件上下文），同时参考 diff 输出确定哪些是新增/修改的代码段
+5. 按照步骤 3 读取到的规则逐项检查
+6. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ### Agent 3：配置文件检查（子代理独立完成）
 
@@ -56,9 +58,10 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 
 1. 执行 `git diff --name-only {target}...{source} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件列表（.yml/.yaml/.properties/.sql/.sh 等）
 2. 若无变更文件则返回 `[]`
-3. 使用 Read 工具读取变更文件的完整内容进行检查
-4. 按照 [references/jcr-rules.md](references/jcr-rules.md) 中的规则逐项检查
-5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+3. 使用 Read 工具读取 `<skill-path>/references/jcr-rules.md`，获取完整的规则列表
+4. 使用 Read 工具读取变更文件的完整内容进行检查
+5. 按照步骤 3 读取到的规则逐项检查
+6. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ### Agent 4：数据库 XML 检查（子代理独立完成）
 
@@ -66,9 +69,10 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 
 1. 执行 `git diff --name-only {target}...{source} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件列表（如 MyBatis mapper）
 2. 若无变更文件则返回 `[]`
-3. 使用 Read 工具读取变更文件的完整内容进行检查
-4. 按照 [references/sql-xml-rules.md](references/sql-xml-rules.md) 中的规则逐项检查
-5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+3. 使用 Read 工具读取 `<skill-path>/references/sql-xml-rules.md`，获取完整的规则列表
+4. 使用 Read 工具读取变更文件的完整内容进行检查
+5. 按照步骤 3 读取到的规则逐项检查
+6. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ## 阶段3：汇总输出审查报告
 
