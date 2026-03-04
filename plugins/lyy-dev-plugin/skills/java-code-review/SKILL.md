@@ -26,7 +26,7 @@ allowed-tools:
 
 ## 阶段2：并行启动 4 个 Review Agents
 
-使用 `Agent` 工具同时启动 4 个子代理，分别独立审查变更。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
+使用 `Agent` 工具同时启动 4 个子代理（`subagent_type: "general-purpose"`），分别独立审查变更。每个子代理拥有 Bash、Read、Grep、Glob 等工具权限。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
 
 每个 Agent 返回的结果是 JSON 数组，格式遵循 [assets/example-agent-output.md](assets/example-agent-output.md) 中定义的 schema。无问题时返回空数组 `[]`。
 
