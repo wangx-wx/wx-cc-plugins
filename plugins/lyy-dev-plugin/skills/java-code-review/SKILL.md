@@ -1,48 +1,80 @@
 ---
 name: java-code-review
-description: 对已有的 Java 代码进行审查，以确保其可重复使用性、质量和效率，然后生成审查报告。
+description: 对已有的 Java 代码进行审查，以确保其可重复使用性、质量和效率，然后生成审查报告。当用户提到代码审查、review、代码检查、合并前审查、MR 审查、PR 审查、代码质量检查、P3C 检查、Java 规范检查时，应使用此 skill。即使用户只是说"帮我看看代码"或"检查一下改动"，只要上下文是 Java 项目，都应触发此 skill。
 allowed-tools:
   - Bash(git diff *)
   - Bash(git rev-parse *)
+  - Bash(git fetch *)
   - Bash(python *diff_scan.py*)
 ---
 
 # Java Code Review
 
-对所有修改过的文件进行检查，对其进行P3C、基础规范、配置文件、XML和自定义规范审查，生成审查报告。
+对两个分支之间所有变更文件进行多维度审查（P3C 静态分析、基础规范、配置文件、数据库 XML），最终生成一份结构化的审查报告。
 
-## 阶段1 确认分支信息
-通过 `git rev-parse --abbrev-ref HEAD` 获取当前分支名作为 <source>source</source> 默认值，target 默认值为 <target>`origin/master`</target>。使用 AskUserQuestion 让用户确认或修改：
-- **source 分支**：默认当前分支
-- **target 分支**：默认 `origin/master`
-- **仓库路径**：默认当前工作目录
+## 阶段1：确认分支信息
 
-## 阶段2 并行启动 4 个 Review Agents
-使用`Task Tool`同时启动4个Agents，分别独立审查变更。每一个代理都有`Bash(git diff *)`的权限，将<source>分支</source>、<target>分支</target>、本地仓库地址信息完整的传递给子代理
+1. 执行 `git rev-parse --abbrev-ref HEAD` 获取当前分支名作为 **source 分支** 的默认值
+2. **target 分支** 默认值为 `origin/master`
+3. 使用 AskUserQuestion 让用户确认或修改以下信息：
+   - **source 分支**：默认当前分支
+   - **target 分支**：默认 `origin/master`
+   - **仓库路径**：默认当前工作目录
+4. 执行 `git fetch origin` 确保远程分支信息是最新的
 
-### Agent 1: P3C 检查
-`Agent 1` 拥有`Bash(python *diff_scan.py*)`权限
-执行脚本，获取P3C审查报告，将报告的结果返回
+> 后续阶段中，`{source}` 代表用户确认的 source 分支，`{target}` 代表用户确认的 target 分支，`{repo-path}` 代表仓库路径。
+
+## 阶段2：并行启动 4 个 Review Agents
+
+使用 `Agent` 工具同时启动 4 个子代理，分别独立审查变更。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
+
+每个 Agent 返回的结果是 JSON 数组，格式遵循 [assets/example-agent-output.md](assets/example-agent-output.md) 中定义的 schema。无问题时返回空数组 `[]`。
+
+### Agent 1：P3C 静态分析
+
+执行 P3C 扫描脚本，获取静态分析结果并直接返回。
+
 ```bash
-python <skill-path>/scripts/diff_scan.py <repo-path> --source <source-branch> --target <target-branch>
+python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target {target}
 ```
 
-### Agent 2: 基础规范检查
-1. 执行`git diff <source>分支</source> <target>分支</target> -- "*.java" ":(exclude)*.md"`命令获取所有变更的Java文件
-2. 无变更文件则返回`[]`，对于所有变更文件执行规范检查，检查内容仅限于[references/base-rules.md](references/base-rules.md)
-3. 最后返回检查报告，报告格式参考：[assets/example-agent-output.md](assets/example-agent-output.md)
+脚本会自动处理分支差异文件提取、Java 环境校验和 PMD 执行，输出 JSON 格式的违规列表。
 
-### Agent 3: 配置文件检查
-1. 执行`git diff <source>分支</source> <target>分支</target> -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"`命令获取所有变更的配置文件
-2. 无变更文件则返回空`[]`，对于所有变更文件执行规范检查，检查内容仅限于[references/jcr-rules.md](references/jcr-rules.md)
-3. 最后返回检查报告，报告格式参考：[assets/example-agent-output.md](assets/example-agent-output.md)
+### Agent 2：基础规范检查
 
-### Agent 4: 数据库XML检查
-1. 执行`git diff <source>分支</source> <target>分支</target> -- "*.xml" ":(exclude)*pom.xml" ":(exclude)*.md"`命令获取所有变更的orm xml文件
-2. 无变更文件则返回空`[]`，对于所有变更文件执行规范检查，检查内容仅限于[references/sql-xml-rules.md](references/sql-xml-rules.md)
-3. 最后返回检查报告，报告格式参考：[assets/example-agent-output.md](assets/example-agent-output.md)
+1. 执行 `git diff --name-only {target}...{source} -- "*.java"` 获取变更的 Java 文件列表
+2. 若无变更文件则返回 `[]`
+3. 对每个变更文件，使用 Read 工具读取完整内容（因为 BASE-00005 大型函数、BASE-00006 大型文件等规则需要完整文件上下文），同时参考 diff 输出确定哪些是新增/修改的代码段
+4. 按照 [references/base-rules.md](references/base-rules.md) 中的规则逐项检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
+### Agent 3：配置文件检查
 
-## 阶段3 输出检查报告
+1. 执行 `git diff --name-only {target}...{source} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件列表（.yml/.yaml/.properties/.sql/.sh 等）
+2. 若无变更文件则返回 `[]`
+3. 使用 Read 工具读取变更文件的完整内容进行检查
+4. 按照 [references/jcr-rules.md](references/jcr-rules.md) 中的规则逐项检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
-根据所有Agent返回的检查信息进行总结汇总，输出一份报告，报个格式参考：[assets/example-output.md](assets/example-output.md)。
+### Agent 4：数据库 XML 检查
+
+1. 执行 `git diff --name-only {target}...{source} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件列表（如 MyBatis mapper）
+2. 若无变更文件则返回 `[]`
+3. 使用 Read 工具读取变更文件的完整内容进行检查
+4. 按照 [references/sql-xml-rules.md](references/sql-xml-rules.md) 中的规则逐项检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+
+## 阶段3：汇总输出审查报告
+
+收集所有 Agent 返回的 JSON 数组结果，按以下步骤生成最终报告：
+
+1. **合并结果**：将 4 个 Agent 的 JSON 数组合并为一个列表
+2. **去重**：如果不同 Agent 对同一文件同一位置报告了相同问题，保留其中一条
+3. **分级排列**：按 `blockLevel` 严重程度排序：Blocker → Critical → Major → Minor
+4. **生成报告**：按照 [assets/example-output.md](assets/example-output.md) 的格式输出最终 Markdown 报告，包含：
+   - 审查范围（分支信息和 diff 统计）
+   - 优势（变更中做得好的方面）
+   - 按级别分组的问题列表（每个问题包含规则编号、位置、代码片段、影响、修复建议）
+   - 清单覆盖情况
+   - 建议
+   - 是否可合并的评估结论
