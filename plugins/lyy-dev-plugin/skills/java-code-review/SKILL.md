@@ -26,13 +26,13 @@ allowed-tools:
 
 ## 阶段2：并行启动 4 个 Review Agents
 
-使用 `Agent` 工具同时启动 4 个子代理（`subagent_type: "general-purpose"`），分别独立审查变更。每个子代理拥有 Bash、Read、Grep、Glob 等工具权限。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
+使用 `Agent` 工具同时启动 4 个子代理（`subagent_type: "general-purpose"`），每个子代理独立完成各自的检查任务并返回结果，主 Agent 不参与具体的检查过程，仅负责收集结果。每个子代理拥有 Bash、Read、Grep、Glob 等工具权限。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
 
-每个 Agent 返回的结果是 JSON 数组，格式遵循 [assets/example-agent-output.md](assets/example-agent-output.md) 中定义的 schema。无问题时返回空数组 `[]`。
+每个子代理返回的结果是 JSON 数组，格式遵循 [assets/example-agent-output.md](assets/example-agent-output.md) 中定义的 schema。无问题时返回空数组 `[]`。
 
-### Agent 1：P3C 静态分析
+### Agent 1：P3C 静态分析（子代理独立完成）
 
-执行 P3C 扫描脚本，获取静态分析结果并直接返回。
+子代理执行 P3C 扫描脚本，独立完成静态分析并返回结果：
 
 ```bash
 python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target {target}
@@ -40,7 +40,9 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 
 脚本会自动处理分支差异文件提取、Java 环境校验和 PMD 执行，输出 JSON 格式的违规列表。
 
-### Agent 2：基础规范检查
+### Agent 2：基础规范检查（子代理独立完成）
+
+子代理独立执行以下步骤：
 
 1. 执行 `git diff --name-only {target}...{source} -- "*.java"` 获取变更的 Java 文件列表
 2. 若无变更文件则返回 `[]`
@@ -48,7 +50,9 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 4. 按照 [references/base-rules.md](references/base-rules.md) 中的规则逐项检查
 5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
-### Agent 3：配置文件检查
+### Agent 3：配置文件检查（子代理独立完成）
+
+子代理独立执行以下步骤：
 
 1. 执行 `git diff --name-only {target}...{source} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件列表（.yml/.yaml/.properties/.sql/.sh 等）
 2. 若无变更文件则返回 `[]`
@@ -56,7 +60,9 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 4. 按照 [references/jcr-rules.md](references/jcr-rules.md) 中的规则逐项检查
 5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
-### Agent 4：数据库 XML 检查
+### Agent 4：数据库 XML 检查（子代理独立完成）
+
+子代理独立执行以下步骤：
 
 1. 执行 `git diff --name-only {target}...{source} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件列表（如 MyBatis mapper）
 2. 若无变更文件则返回 `[]`
