@@ -23,27 +23,37 @@
 - 描述：模块暴露了应封装的内部实现细节，或跨层直接依赖破坏了分层架构。如 Controller 直接操作 DAO、Service 返回数据库 Entity 给前端、工具类暴露内部数据结构
 - 修复建议：严格遵循 Controller → Service → Repository 分层；使用 DTO/VO 隔离层间数据传递，避免 Entity 直接暴露
 
-## EFFI-00005 Null 风险
+## EFFI-00005 大型函数
+- 级别：Major
+- 描述：单个方法超过 50 行（不含空行和注释），通常意味着职责过多、难以理解和测试
+- 修复建议：按逻辑步骤拆分为多个职责单一的私有方法，每个方法通过方法名自文档化
+
+## EFFI-00006 大型文件
+- 级别：Major
+- 描述：单个 Java 文件超过 800 行，通常意味着类承担了过多职责
+- 修复建议：按职责拆分为多个类，通过组合或继承复用公共逻辑
+
+## EFFI-00007 Null 风险
 - 级别：Major
 - 描述：可能抛出 NullPointerException 的代码路径。包括：对可能为 null 的返回值直接调用方法、集合操作前未判空、Map.get() 结果未判空直接使用、链式调用中间环节可能为 null
 - 修复建议：外部输入和跨层返回值做判空校验；优先使用 Optional 包装可空返回值；集合使用 CollectionUtils.isEmpty() 判空
 
-## EFFI-00006 明文敏感信息
+## EFFI-00008 明文敏感信息
 - 级别：Critical
 - 描述：代码中以硬编码形式出现密码、数据库连接串、API Key、Token、AK/SK 等敏感凭据，存在泄露风险
 - 修复建议：敏感信息通过环境变量、配置中心或密钥管理服务（如 Vault）注入，禁止提交到代码仓库
 
-## EFFI-00007 并发安全问题
+## EFFI-00009 并发安全问题
 - 级别：Major
 - 描述：多线程场景下的数据竞争风险。包括：共享可变状态未加同步、在并发上下文中使用 HashMap/ArrayList/SimpleDateFormat 等非线程安全类、对共享变量的 check-then-act 非原子操作
 - 修复建议：使用 ConcurrentHashMap、CopyOnWriteArrayList 等并发集合替代；共享计数器使用 AtomicInteger；复合操作使用 synchronized 或 Lock 保护
 
-## EFFI-00008 事务使用问题
+## EFFI-00010 事务使用问题
 - 级别：Major
 - 描述：Spring 事务可能失效或使用不当。常见场景：同类内部方法调用绕过代理导致 @Transactional 失效、private 方法上标注 @Transactional、事务方法内执行耗时 IO（如 HTTP 调用）导致长事务、未指定 rollbackFor 导致受检异常不回滚
 - 修复建议：确保事务方法通过代理调用；添加 rollbackFor = Exception.class；将耗时 IO 移到事务外部
 
-## EFFI-00009 API 设计问题
+## EFFI-00011 API 设计问题
 - 级别：Major
 - 描述：接口设计不合理影响可维护性。包括：方法参数超过 5 个未封装为对象、Controller 中编写业务逻辑而非委托 Service、返回值直接使用 Map 而非定义明确的 DTO
 - 修复建议：超过 3 个参数封装为 Request DTO；Controller 仅负责参数校验和结果返回，业务逻辑交给 Service 层
