@@ -91,6 +91,7 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
    - 统计（每个级别的问题数量）
    - 优势（变更中做得好的方面）
    - 按级别分组的问题展示（每个问题包含规则编号、位置、代码片段、影响、修复建议）
+      - P3C 违规问题展示时，需要标记是P3C检查结果
    - 清单覆盖情况
    - 建议
    - 是否可合并的评估结论
