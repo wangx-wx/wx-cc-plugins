@@ -45,46 +45,55 @@ allowed-tools:
 python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target {target}
 ```
 
-脚本会自动处理分支差异文件提取、Java 环境校验和 PMD 执行，输出 JSON 格式的违规列表。
+脚本输出 JSON 格式违规列表，子代理直接透传结果，**不得对脚本结果进行增删或补充其他违规项**。
 
-### Agent 2：效率检查（子代理独立完成）
+### Agent 2：Java规范检查（子代理独立完成）
 
-该代理只做变更.java 文件的检查，子代理独立执行以下步骤，将一下步骤完全交给子代理：
+**文件范围**：所有变更的 `.java` 文件
 
-1. 执行 `git diff {target}...{source} -- "*.java"` 获取变更的 Java 文件列表
+子代理独立执行以下步骤，将以下步骤完全转交给子代理：
+
+1. 执行 `git diff {target}...{source} -- "*.java"` 获取变更的 Java 文件
 2. 步骤 1 的结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
-3. 使用 Read 工具读取 `<skill-path>/references/efficiency-rules.md`，获取完整的规则列表，不需要增加其他规则
-4. 对每个变更文件，使用 Read 工具读取完整内容（因为大型函数、大型文件等规则需要完整文件上下文），同时参考 diff 输出确定哪些是新增/修改的代码段
-5. 按照步骤 3 读取到的规则逐项检查
-6. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+3. 使用 Read 工具读取 `<skill-path>/references/java-rules.md`，获取完整的规则，不需要增加其他规则
+4. 对每个变更文件：
+   - **以 diff hunk 中 `+` 开头的行作为主要检查对象**，这些是本次变更引入的新增或修改内容
+   - 若规则需要统计整个文件结构（如方法行数、类行数），使用 Read 工具读取完整文件作为**上下文参考**，但违规结论必须是"本次变更导致该规则被触发"，而非历史存量问题
+   - 逐项对照步骤 3 中的规则进行检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ### Agent 3：配置文件检查（子代理独立完成）
 
-该代理只做配置文件（.yml/.yaml/.properties/.sql/.sh 等）的检查，子代理独立执行以下步骤，将一下步骤完全交给子代理：
+**文件范围**：变更的配置文件（`.yml`、`.yaml`、`.properties`、`.sql`、`.sh` 等，**不含** `.java`、`.xml`、`.md`）  
 
-1. 执行 `git diff {target}...{source} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件列表（.yml/.yaml/.properties/.sql/.sh 等）
+子代理独立执行以下步骤，将以下步骤完全转交给子代理：
+
+1. 执行 `git diff {target}...{source} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件（.yml/.yaml/.properties/.sql/.sh 等）
 2. 步骤 1 的结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
-3. 使用 Read 工具读取 `<skill-path>/references/jcr-rules.md`，获取完整的规则列表，不需要增加其他规则
-4. 使用 Read 工具读取变更文件的完整内容进行检查
-5. 按照步骤 3 读取到的规则逐项检查
-6. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+3. 使用 Read 工具读取 `<skill-path>/references/jcr-rules.md`，获取完整的规则，不需要增加其他规则
+4. 对每个变更文件：
+   - **以 diff hunk 中 `+` 开头的行作为主要检查对象**
+   - 逐项对照步骤 3 中的规则进行检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ### Agent 4：数据库 XML 检查（子代理独立完成）
 
-该代理只做数据库 XML 文件的检查，子代理独立执行以下步骤，将一下步骤完全交给子代理：
+**文件范围**：变更的 ORM XML 文件（如 MyBatis mapper，**不含** `pom.xml`）  
+子代理独立执行以下步骤，将以下步骤完全转交给子代理：
 
-1. 执行 `git diff {target}...{source} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件列表（如 MyBatis mapper）
+1. 执行 `git diff {target}...{source} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件（如 MyBatis mapper）
 2. 步骤 1 的结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
-3. 使用 Read 工具读取 `<skill-path>/references/sql-xml-rules.md`，获取完整的规则列表，不需要增加其他规则
-4. 使用 Read 工具读取变更文件的完整内容进行检查
-5. 按照步骤 3 读取到的规则逐项检查
-6. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+3. 使用 Read 工具读取 `<skill-path>/references/sql-xml-rules.md`，获取完整的规则，不需要增加其他规则
+4. 对每个变更文件：
+   - **以 diff hunk 中 `+` 开头的行作为主要检查对象**
+   - 逐项对照步骤 3 中的规则进行检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ## 阶段3：汇总输出审查报告
 
 收集所有 Agent 返回的 JSON 数组结果，按以下步骤生成最终报告：
 
-1. **合并结果**：将 4 个 Agent 的 JSON 数组合并为一个列表
+1. **合并结果**：将 4 个 Agent 的 JSON 数组合并为一个结果报告
 2. **分级排列**：按 `blockLevel` 严重程度排序：Blocker → Critical → Major → Minor
 3. **生成报告**：按照 [assets/example-output.md](assets/example-output.md) 的格式输出最终 Markdown 报告，包含：
    - 审查范围（分支信息）
