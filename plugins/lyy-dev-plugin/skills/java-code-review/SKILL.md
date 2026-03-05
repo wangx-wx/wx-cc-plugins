@@ -49,34 +49,31 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 
 该代理只做.java 文件的检查，子代理独立执行以下步骤：
 
-1. 执行 `git diff {target}...{source} -- "*.java"` 获取变更的 Java 文件列表
-2. 步骤 1的结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
-3. 使用 Read 工具读取 `<skill-path>/references/efficiency-rules.md`，获取完整的规则列表，不需要增加其他规则
-4. 对每个变更文件，使用 Read 工具读取完整内容（因为大型函数、大型文件等规则需要完整文件上下文），同时参考 diff 输出确定哪些是新增/修改的代码段
-5. 按照步骤 3 读取到的规则逐项检查
-6. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+1. 执行 `git diff {target}...{source} -- "*.java"` 获取变更的 Java 文件列表。若结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
+2. 使用 Read 工具读取 `<skill-path>/references/efficiency-rules.md`，获取完整的规则列表，不需要增加其他规则
+3. 对每个变更文件，使用 Read 工具读取完整内容（因为大型函数、大型文件等规则需要完整文件上下文），同时参考 diff 输出确定哪些是新增/修改的代码段
+4. 按照步骤 2 读取到的规则逐项检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ### Agent 3：配置文件检查（子代理独立完成）
 
 该代理只做配置文件（.yml/.yaml/.properties/.sql/.sh 等）的检查，子代理独立执行以下步骤：
 
-1. 执行 `git diff {target}...{source} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件列表（.yml/.yaml/.properties/.sql/.sh 等）
-2. 步骤 1的结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
-3. 使用 Read 工具读取 `<skill-path>/references/jcr-rules.md`，获取完整的规则列表，不需要增加其他规则
-4. 使用 Read 工具读取变更文件的完整内容进行检查
-5. 按照步骤 3 读取到的规则逐项检查
-6. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+1. 执行 `git diff {target}...{source} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件列表（.yml/.yaml/.properties/.sql/.sh 等）。若结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
+2. 使用 Read 工具读取 `<skill-path>/references/jcr-rules.md`，获取完整的规则列表，不需要增加其他规则
+3. 使用 Read 工具读取变更文件的完整内容进行检查
+4. 按照步骤 2 读取到的规则逐项检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ### Agent 4：数据库 XML 检查（子代理独立完成）
 
 该代理只做数据库 XML 文件的检查，子代理独立执行以下步骤：
 
-1. 执行 `git diff {target}...{source} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件列表（如 MyBatis mapper）
-2. 步骤 1的结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
-3. 使用 Read 工具读取 `<skill-path>/references/sql-xml-rules.md`，获取完整的规则列表，不需要增加其他规则
-4. 使用 Read 工具读取变更文件的完整内容进行检查
-5. 按照步骤 3 读取到的规则逐项检查
-6. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+1. 执行 `git diff {target}...{source} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件列表（如 MyBatis mapper）。若结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
+2. 使用 Read 工具读取 `<skill-path>/references/sql-xml-rules.md`，获取完整的规则列表，不需要增加其他规则
+3. 使用 Read 工具读取变更文件的完整内容进行检查
+4. 按照步骤 2 读取到的规则逐项检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ## 阶段3：汇总输出审查报告
 
