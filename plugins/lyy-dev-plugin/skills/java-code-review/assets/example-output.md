@@ -1,12 +1,6 @@
 ## 审查范围
 **Source:** feature/xxx → **Target:** origin/master
 
-```
- src/main/java/.../UserService.java | 25 +++--
- db/migration/V20260101__update.sql |  8 ++
- 2 files changed, 20 insertions(+), 13 deletions(-)
-```
-
 ## 统计
 | 级别 | 数量 |
 |------|------|
@@ -58,10 +52,10 @@
 | 配置文件 | 已覆盖 | 配置变更可回滚 |
 | 数据库 XML | 已覆盖 | 发现 SQL 问题 |
 
-## 建议
+## 修复建议
 - 建议为关键 SQL 变更补充回滚脚本
 
-## 评估
+## 评估结论
 **是否可合并：** 需修复
 
 **理由：**
