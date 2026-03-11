@@ -201,6 +201,14 @@ def filter_changed_files(file_statuses: List[Tuple[str, str]]) -> List[str]:
     ]
 
 
+def is_test_file(path: str) -> bool:
+    """判断文件是否为单元测试文件。
+
+    匹配规则: 路径包含 src/test/（Maven/Gradle 标准测试目录）
+    """
+    return "/src/test/" in path.replace("\\", "/")
+
+
 def resolve_absolute_paths(
     repo_path: str, relative_paths: List[str]
 ) -> List[str]:
@@ -398,9 +406,10 @@ def diff_scan(
     validate_branch_exists(repo_abs_path, source)
     validate_branch_exists(repo_abs_path, target)
 
-    # 2. 获取变更文件
+    # 2. 获取变更文件（跳过单元测试）
     file_statuses = get_diff_file_statuses(repo_abs_path, source, target)
     changed_files = filter_changed_files(file_statuses)
+    changed_files = [f for f in changed_files if not is_test_file(f)]
     absolute_paths = resolve_absolute_paths(repo_abs_path, changed_files)
 
     if not absolute_paths:

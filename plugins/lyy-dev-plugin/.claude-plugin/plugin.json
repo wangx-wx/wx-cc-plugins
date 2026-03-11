@@ -18,6 +18,7 @@
         "./skills/mcp-builder",
         "./skills/p3c-reviewer",
         "./skills/java-code-review",
-        "./skills/md-check"
+        "./skills/md-check",
+        "./skills/excalidraw-diagram"
     ]
 }

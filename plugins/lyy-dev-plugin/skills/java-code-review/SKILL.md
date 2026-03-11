@@ -21,13 +21,14 @@ allowed-tools: Bash(git diff *), Bash(git rev-parse *), Bash(git fetch *), Bash(
 
 ## 阶段2：并行启动 4 个 Review Agents
 
-使用 ${AGENT_TOOL_NAME} tool 在一条消息中同时启动 4 个代理（`subagent_type: "general-purpose"`），每个代理独立完成各自的检查任务并返回结果，主 Agent 不参与具体的检查过程，仅负责收集结果。每个子代理拥有 Bash、Read、Grep、Glob 等工具权限。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
+使用 ${AGENT_TOOL_NAME} tool 在一条消息中同时启动 4 个代理（`subagent_type: "general-purpose"`），每个代理独立完成各自的检查任务并返回结果，主 Agent 不参与具体的检查过程，仅负责收集结果。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
 
 每个子代理返回的结果是 JSON 数组，格式遵循 [assets/example-agent-output.md](assets/example-agent-output.md) 中定义的 schema。无问题时返回空数组 `[]`。
 
 > **规则约束**：
 > 1. 每个子代理必须先读取对应的参考规则文件，仅使用文件中定义的规则进行检查，返回结果中的 ruleId 必须与参考文件中的编号完全一致。
 > 2. 只对变更文件进行检查，未变更的文件不应产生任何违规结果。
+> 3. 每个子代理拥有 Bash(git diff \*)、Bash(git rev-parse \*)、Bash(git fetch \*)、Bash(python \*diff_scan.py\*)、Read、Grep、Glob 等工具权限。
 
 ### Agent 1：P3C 静态分析（子代理独立完成）
 
