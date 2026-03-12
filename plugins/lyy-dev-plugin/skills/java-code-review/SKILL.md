@@ -42,11 +42,11 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 
 ### Agent 2：Java规范检查（子代理独立完成）
 
-**文件范围**：所有变更的 `.java` 文件
+**文件范围**：所有变更的 `.java` 文件（排除单元测试目录）
 
 子代理独立执行以下步骤，将以下步骤完全转交给子代理：
 
-1. 执行 `git diff {target}...{source} -- "*.java"` 获取变更的 Java 文件
+1. 执行 `git diff {target}...{source} -- "*.java" ":(exclude)*/src/test/*"` 获取变更的 Java 文件（排除单元测试目录）
 2. 步骤 1 的结果为空，足以证明若无变更文件，返回 `[]`，不需要做其他检查
 3. 使用 Read 工具读取 `<skill-path>/references/java-rules.md`，获取完整的规则，不需要增加其他规则
 4. 对每个变更文件：
