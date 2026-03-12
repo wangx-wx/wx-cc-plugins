@@ -1,7 +1,7 @@
 ---
 name: java-code-review
 description: 对已有的 Java 代码进行审查，以确保其可重复使用性、质量和效率，然后生成审查报告。当用户提到代码审查、review、代码检查、合并前审查、MR 审查、PR 审查、代码质量检查、P3C 检查、Java 规范检查时，应使用此 skill。即使用户只是说"帮我看看代码"或"检查一下改动"，只要上下文是 Java 项目，都应触发此 skill。
-allowed-tools: Bash(git diff *), Bash(git rev-parse *), Bash(git fetch *), Bash(python *diff_scan.py*), Read, Grep, Glob, AskUserQuestion
+allowed-tools: Bash(git diff *), Bash(git rev-parse *),  Bash(git show-ref *), Bash(git fetch *), Bash(python *diff_scan.py*), Read, Grep, Glob, AskUserQuestion, Bash(mkdir *), Bash(date *), Write
 ---
 
 # Java Code Review
@@ -10,14 +10,17 @@ allowed-tools: Bash(git diff *), Bash(git rev-parse *), Bash(git fetch *), Bash(
 
 ## 阶段1：确认分支信息
 
-1. 执行 `git rev-parse --abbrev-ref HEAD` 获取当前分支名作为 **source 分支** 的默认值
-2. **target 分支** 默认值为 `origin/master`
-3. 使用 AskUserQuestion 让用户确认或修改以下信息：
+1. 若 `$ARGUMENTS[0]` 非空，执行 `git show-ref --verify refs/heads/$ARGUMENTS[0] || git show-ref --verify refs/remotes/$ARGUMENTS[0]`，命令成功则 `{source}` = `$ARGUMENTS[0]`
+2. 若 `$ARGUMENTS[1]` 非空，执行 `git show-ref --verify refs/heads/$ARGUMENTS[1] || git show-ref --verify refs/remotes/$ARGUMENTS[1]`，命令成功则 `{target}` = `$ARGUMENTS[1]`
+3. 若 `{source}` 和 `{target}` 均已设置，跳过第 4-6 步直接继续
+4. 执行 `git rev-parse --abbrev-ref HEAD` 获取当前分支名，作为 `{source}` 的默认值
+5. `{target}` 默认值设为 `origin/master`，`{repo}` 默认值设为当前工作目录
+6. 使用 AskUserQuestion 让用户确认或修改以下信息：
    - **source 分支**：默认当前分支
    - **target 分支**：默认 `origin/master`
    - **仓库路径**：默认当前工作目录
 
-> 后续阶段中，`{source}` 代表用户确认的 source 分支，`{target}` 代表用户确认的 target 分支，`{repo-path}` 代表仓库路径。
+> 后续阶段中，`{source}` 代表最终确定的 source 分支，`{target}` 代表最终确定的 target 分支，`{repo-path}` 代表仓库路径。
 
 ## 阶段2：并行启动 4 个 Review Agents
 
@@ -82,7 +85,7 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
    - 逐项对照步骤 3 中的规则进行检查
 5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
-## 阶段3：汇总输出审查报告
+## 阶段3：汇总输出并保存审查报告
 
 收集所有 Agent 返回的 JSON 数组结果，按以下步骤生成最终报告：
 
@@ -97,3 +100,8 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
    - 清单覆盖情况
    - 建议
    - 是否可合并的评估结论
+4. **保存报告到文件**：
+   - 执行 `date +%Y%m%d%H%M%S` 获取当前时间戳（格式：年月日时分秒，如 `20260312143025`）
+   - 在 `{repo-path}` 下创建目录：`mkdir -p {repo-path}/data/{timestamp}`
+   - 使用 Write 工具将报告保存到：`{repo-path}/data/{timestamp}/代码审查报告.md`
+   - 告知用户报告已保存的完整路径
