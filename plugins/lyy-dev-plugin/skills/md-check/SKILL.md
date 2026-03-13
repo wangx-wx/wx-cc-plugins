@@ -1,6 +1,7 @@
 ---
 name: md-check
 description: 扫描指定目录下的 Markdown 文件，统计指定标题等级下各段落的字符数量，展示 Top N 结果。支持在标题前后插入分隔符并输出到新目录（不修改源文件）。当用户提到 Markdown 分析、md 文件扫描、标题字符统计、内容长度排行、md 段落拆分、章节字数统计时应使用此 skill。即使用户只是说"看看哪些章节最长"或"统计一下 md 标题下的内容"，也应触发此 skill。
+disable-model-invocation: true
 allowed-tools:
   - Bash
   - Read

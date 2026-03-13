@@ -1,6 +1,7 @@
 ---
 name: p3c-reviewer
 description:  基于阿里巴巴 P3C 规范的代码审查工具，通过 PMD 静态分析引擎检查代码规范问题。使用场景：(1) 用户要求进行 P3C 代码审查或规范检查，(2) 用户要求对比两个 Git 分支的变更文件并进行代码审查，(3) 用户提及阿里巴巴编码规范、Java 编码规范检查。支持增量审查（仅扫描分支差异文件）和全量审查（指定文件/目录）。
+disable-model-invocation: true
 allowed-tools:
   - Bash(git rev-parse *)
   - Bash(python *git_diff_files.py*)
