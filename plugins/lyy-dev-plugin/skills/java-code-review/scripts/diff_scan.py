@@ -12,8 +12,10 @@ import glob
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
+import tempfile
 from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
@@ -176,10 +178,71 @@ def get_diff_file_statuses(
     for line in stdout_str.strip().splitlines():
         if not line.strip():
             continue
-        parts = line.split("\t", 1)
-        if len(parts) == 2:
+        parts = line.split("\t")
+        if len(parts) == 3:
+            # R(ename) / C(opy): status\told_path\tnew_path → 取新路径
+            results.append((parts[0].strip(), parts[2].strip()))
+        elif len(parts) == 2:
             results.append((parts[0].strip(), parts[1].strip()))
     return results
+
+
+# ---------------------------------------------------------------------------
+# 变更行范围提取
+# ---------------------------------------------------------------------------
+
+def get_changed_line_ranges(
+    repo_path: str, source: str, target: str
+) -> Dict[str, List[Tuple[int, int]]]:
+    """获取每个变更文件的变更行范围（hunk 粒度）。
+
+    使用 git diff -U0（零上下文）解析 hunk 头，提取新文件侧的行范围。
+
+    Args:
+        repo_path: 仓库绝对路径
+        source: 源分支
+        target: 目标分支
+
+    Returns:
+        {相对路径: [(start, end), ...]} 的字典，start/end 为闭区间行号
+    """
+    cmd = [
+        "git", "-C", repo_path,
+        "diff", "-U0", f"{target}...{source}",
+    ]
+    try:
+        proc = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+    except FileNotFoundError:
+        raise SystemExit("git 命令未找到，请确认已安装 Git 并加入 PATH")
+
+    if proc.returncode != 0:
+        stderr_str = _decode_output(proc.stderr).strip()
+        raise SystemExit(f"git diff -U0 执行失败:\n  {stderr_str}")
+
+    stdout_str = _decode_output(proc.stdout)
+    changed_ranges: Dict[str, List[Tuple[int, int]]] = {}
+    current_file = None
+
+    for line in stdout_str.splitlines():
+        # +++ b/path/to/file → 提取文件相对路径
+        if line.startswith("+++ b/"):
+            current_file = line[6:]
+        elif line.startswith("@@") and current_file:
+            # 解析 @@ -old +new_start,new_count @@ 中的 new 侧
+            match = re.search(r"\+(\d+)(?:,(\d+))?", line)
+            if match:
+                start = int(match.group(1))
+                count = int(match.group(2)) if match.group(2) else 1
+                if count > 0:  # count=0 表示纯删除，无新行
+                    if current_file not in changed_ranges:
+                        changed_ranges[current_file] = []
+                    changed_ranges[current_file].append(
+                        (start, start + count - 1)
+                    )
+
+    return changed_ranges
 
 
 # ---------------------------------------------------------------------------
@@ -205,30 +268,81 @@ def is_test_file(path: str) -> bool:
     """判断文件是否为单元测试文件。
 
     匹配规则: 路径包含 src/test/（Maven/Gradle 标准测试目录）
+    兼容单模块项目（路径以 src/test/ 开头）和多模块项目（路径包含 /src/test/）
     """
-    return "/src/test/" in path.replace("\\", "/")
+    normalized = path.replace("\\", "/")
+    return "/src/test/" in normalized or normalized.startswith("src/test/")
 
 
-def resolve_absolute_paths(
-    repo_path: str, relative_paths: List[str]
-) -> List[str]:
-    """将相对路径转为绝对路径，跳过不存在的文件并发出警告。
-
-    Args:
-        repo_path: 仓库绝对路径
-        relative_paths: 相对于仓库根目录的文件路径列表
+def get_current_branch(repo_path: str) -> str:
+    """获取仓库当前 checkout 的分支名。
 
     Returns:
-        存在的文件的绝对路径列表
+        分支名，detached HEAD 时返回空字符串
     """
+    cmd = ["git", "-C", repo_path, "rev-parse", "--abbrev-ref", "HEAD"]
+    try:
+        proc = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+    except FileNotFoundError:
+        return ""
+    branch = _decode_output(proc.stdout).strip()
+    return "" if branch == "HEAD" else branch
+
+
+def resolve_working_tree_paths(
+    repo_path: str, relative_paths: List[str]
+) -> List[str]:
+    """将相对路径转为工作区绝对路径，跳过不存在的文件。"""
     absolute_paths: List[str] = []
     for rel_path in relative_paths:
         abs_path = os.path.normpath(os.path.join(repo_path, rel_path))
         if os.path.isfile(abs_path):
             absolute_paths.append(abs_path)
         else:
-            logger.warning("文件在工作区中不存在（可能未切换到 source 分支）: %s", rel_path)
+            logger.warning("文件在工作区中不存在: %s", rel_path)
     return absolute_paths
+
+
+def extract_files_from_branch(
+    repo_path: str, branch: str, relative_paths: List[str], dest_dir: str
+) -> List[str]:
+    """通过 git show 从指定分支提取文件到临时目录。
+
+    不依赖工作区状态，支持远程分支。
+
+    Args:
+        repo_path: 仓库绝对路径
+        branch: 分支名（本地或远程均可）
+        relative_paths: 相对于仓库根目录的文件路径列表
+        dest_dir: 目标目录
+
+    Returns:
+        提取成功的文件绝对路径列表
+    """
+    extracted: List[str] = []
+    for rel_path in relative_paths:
+        dest_path = os.path.join(dest_dir, rel_path)
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
+        cmd = ["git", "-C", repo_path, "show", f"{branch}:{rel_path}"]
+        try:
+            proc = subprocess.run(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+        except FileNotFoundError:
+            raise SystemExit("git 命令未找到，请确认已安装 Git 并加入 PATH")
+
+        if proc.returncode != 0:
+            logger.warning("无法从分支 %s 提取文件: %s", branch, rel_path)
+            continue
+
+        with open(dest_path, "wb") as f:
+            f.write(proc.stdout)
+        extracted.append(dest_path)
+
+    return extracted
 
 
 # ---------------------------------------------------------------------------
@@ -277,11 +391,8 @@ def run_p3c_check(source_paths: List[str], classpath: str) -> str:
         "--encoding", "UTF-8",
     ]
 
-    env = os.environ.copy()
-    env["JAVA_TOOL_OPTIONS"] = "-Dfile.encoding=UTF-8"
-
     proc = subprocess.run(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     stdout_str = _decode_output(proc.stdout)
     stderr_str = _decode_output(proc.stderr)
@@ -380,6 +491,45 @@ def transform_to_output_format(
 
 
 # ---------------------------------------------------------------------------
+# 变更行过滤
+# ---------------------------------------------------------------------------
+
+def filter_by_changed_lines(
+    results: List[Dict[str, Any]],
+    changed_ranges: Dict[str, List[Tuple[int, int]]],
+) -> List[Dict[str, Any]]:
+    """只保留起始行落在变更 hunk 范围内的违规项。
+
+    判断逻辑：违规的 beginline 落在任一 hunk 的 [start, end] 内即保留，
+    确保只输出由本次变更引入的违规。
+
+    Args:
+        results: 转换后的违规项列表
+        changed_ranges: {文件相对路径: [(start, end), ...]}
+
+    Returns:
+        过滤后的违规项列表
+    """
+    filtered: List[Dict[str, Any]] = []
+
+    for item in results:
+        file_name = item["fileName"].replace("\\", "/")
+        ranges = changed_ranges.get(file_name)
+        if ranges is None:
+            continue
+
+        begin = item.get("beginline", 0)
+
+        # 只检查违规起始行是否落在变更 hunk 内
+        for r_start, r_end in ranges:
+            if r_start <= begin <= r_end:
+                filtered.append(item)
+                break
+
+    return filtered
+
+
+# ---------------------------------------------------------------------------
 # 主流程
 # ---------------------------------------------------------------------------
 
@@ -391,9 +541,12 @@ def diff_scan(
 ) -> List[Dict[str, Any]]:
     """执行分支差异扫描。
 
+    通过 git show 将 source 分支的变更文件提取到临时目录进行扫描，
+    不依赖工作区状态，支持远程分支。
+
     Args:
         repo_path: Git 仓库路径
-        source: 源分支
+        source: 源分支（本地或远程均可）
         target: 目标分支
         max_priority: 最大优先级（过滤阈值）
 
@@ -406,20 +559,42 @@ def diff_scan(
     validate_branch_exists(repo_abs_path, source)
     validate_branch_exists(repo_abs_path, target)
 
-    # 2. 获取变更文件（跳过单元测试）
+    # 2. 获取变更文件与变更行范围
     file_statuses = get_diff_file_statuses(repo_abs_path, source, target)
+    changed_ranges = get_changed_line_ranges(repo_abs_path, source, target)
     changed_files = filter_changed_files(file_statuses)
-    changed_files = [f for f in changed_files if not is_test_file(f)]
-    absolute_paths = resolve_absolute_paths(repo_abs_path, changed_files)
+    changed_files = [
+        f for f in changed_files
+        if f.endswith(".java") and not is_test_file(f)
+    ]
 
-    if not absolute_paths:
+    if not changed_files:
         return []
 
-    # 3. 构建 classpath 并批量执行 P3C 检查
+    # 3. 获取文件并扫描
     classpath = build_classpath()
-    file_count = len(absolute_paths)
-    logger.info("共 %d 个文件待扫描", file_count)
-    json_content = run_p3c_check(absolute_paths, classpath)
+    current_branch = get_current_branch(repo_abs_path)
+    use_worktree = (current_branch == source)
+
+    if use_worktree:
+        # source 就是当前分支，直接读工作区文件
+        absolute_paths = resolve_working_tree_paths(repo_abs_path, changed_files)
+        if not absolute_paths:
+            return []
+        logger.info("共 %d 个文件待扫描（工作区）", len(absolute_paths))
+        json_content = run_p3c_check(absolute_paths, classpath)
+        base_path = repo_abs_path
+    else:
+        # source 非当前分支，提取到临时目录
+        with tempfile.TemporaryDirectory(prefix="p3c_scan_") as tmp_dir:
+            absolute_paths = extract_files_from_branch(
+                repo_abs_path, source, changed_files, tmp_dir
+            )
+            if not absolute_paths:
+                return []
+            logger.info("共 %d 个文件待扫描（临时目录）", len(absolute_paths))
+            json_content = run_p3c_check(absolute_paths, classpath)
+            base_path = tmp_dir
 
     # 4. 解析并过滤报告
     try:
@@ -430,8 +605,9 @@ def diff_scan(
 
     filtered_data = filter_by_priority(report_data, max_priority)
 
-    # 5. 转换输出格式
-    return transform_to_output_format(filtered_data, repo_abs_path)
+    # 5. 转换输出格式并过滤到变更行范围
+    results = transform_to_output_format(filtered_data, base_path)
+    return filter_by_changed_lines(results, changed_ranges)
 
 
 # ---------------------------------------------------------------------------
