@@ -53,10 +53,7 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 1. 执行 `python <skill-path>/scripts/git_diff.py {repo-path} --source {source} --target {target} -- "*.java" ":(exclude)*/src/test/*"` 获取变更的 Java 文件（排除单元测试目录）
 2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
 3. 使用 Read 工具读取 `<skill-path>/references/java-rules.md`，获取完整的规则，不需要增加其他规则
-4. 对每个变更文件：
-   - **以 diff hunk 中 `+` 开头的行作为主要检查对象**，这些是本次变更引入的新增或修改内容
-   - 若规则需要统计整个文件结构（如方法行数、类行数），使用 Read 工具读取完整文件作为**上下文参考**，但违规结论必须是"本次变更导致该规则被触发"，而非历史存量问题
-   - 逐项对照步骤 3 中的规则进行检查
+4. 逐项对照步骤 3 中的规则进行检查
 5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ### Agent 3：配置文件检查（子代理独立完成）
@@ -68,9 +65,7 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 1. 执行 `python <skill-path>/scripts/git_diff.py {repo-path} --source {source} --target {target} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件
 2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
 3. 使用 Read 工具读取 `<skill-path>/references/jcr-rules.md`，获取完整的规则，不需要增加其他规则
-4. 对每个变更文件：
-   - **以 diff hunk 中 `+` 开头的行作为主要检查对象**
-   - 逐项对照步骤 3 中的规则进行检查
+4. 逐项对照步骤 3 中的规则进行检查
 5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ### Agent 4：数据库 XML 检查（子代理独立完成）
@@ -81,9 +76,7 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 1. 执行 `python <skill-path>/scripts/git_diff.py {repo-path} --source {source} --target {target} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件（如 MyBatis mapper）
 2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
 3. 使用 Read 工具读取 `<skill-path>/references/sql-xml-rules.md`，获取完整的规则，不需要增加其他规则
-4. 对每个变更文件：
-   - **以 diff hunk 中 `+` 开头的行作为主要检查对象**
-   - 逐项对照步骤 3 中的规则进行检查
+4. 逐项对照步骤 3 中的规则进行检查
 5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ## 阶段3：汇总输出并保存审查报告
