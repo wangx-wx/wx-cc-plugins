@@ -65,7 +65,7 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 
 子代理独立执行以下步骤，将以下步骤完全转交给子代理：
 
-1. 执行 `python <skill-path>/scripts/git_diff.py {repo-path} --source {source} --target {target} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件（.yml/.yaml/.properties/.sql/.sh 等）
+1. 执行 `python <skill-path>/scripts/git_diff.py {repo-path} --source {source} --target {target} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件
 2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
 3. 使用 Read 工具读取 `<skill-path>/references/jcr-rules.md`，获取完整的规则，不需要增加其他规则
 4. 对每个变更文件：
