@@ -39,7 +39,11 @@ def _validate_repo(path: str) -> str:
     abs_path = os.path.abspath(path)
     if not os.path.isdir(abs_path):
         raise SystemExit(f"路径不存在或不是目录: {abs_path}")
-    if not os.path.exists(os.path.join(abs_path, ".git")):
+    proc = subprocess.run(
+        ["git", "-C", abs_path, "rev-parse", "--git-dir"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    if proc.returncode != 0:
         raise SystemExit(f"不是有效的 Git 仓库: {abs_path}")
     return abs_path
 
