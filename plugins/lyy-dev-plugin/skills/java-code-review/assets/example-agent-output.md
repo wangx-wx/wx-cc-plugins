@@ -56,7 +56,7 @@
   {
     "fileName": "src/main/java/com/example/UserService.java",
     "location": "src/main/java/com/example/UserService.java:42",
-    "ruleId": "BASE-00001",
+    "ruleId": "JAVA-00001",
     "blockLevel": "Critical",
     "codeSnippet": "for (User u : users) { userDao.updateStatus(u.getId(), status); }",
     "affectedScope": "循环内执行数据库更新，用户量大时严重影响性能",

@@ -2,7 +2,7 @@
 name: java-code-review
 description: 对已有的 Java 代码进行审查，以确保其可重复使用性、质量和效率，然后生成审查报告。当用户提到代码审查、review、代码检查、合并前审查、MR 审查、PR 审查、代码质量检查、P3C 检查、Java 规范检查时，应使用此 skill。即使用户只是说"帮我看看代码"或"检查一下改动"，只要上下文是 Java 项目，都应触发此 skill。
 disable-model-invocation: true
-allowed-tools: Bash(git rev-parse *),  Bash(git show-ref *), Bash(git fetch *), Bash(python *diff_scan.py*), Bash(python3 *diff_scan.py*), Bash(python *git_diff.py*), Bash(python3 *git_diff.py*), Read, Grep, Glob, AskUserQuestion, Agent, Bash(mkdir *), Bash(date *), Write
+allowed-tools: Bash(git rev-parse *), Bash(git show-ref *), Bash(node *diff_scan.mjs*), Bash(node *git_diff.mjs*), AskUserQuestion, Agent,
 ---
 
 # Java Code Review
@@ -32,14 +32,14 @@ allowed-tools: Bash(git rev-parse *),  Bash(git show-ref *), Bash(git fetch *), 
 > **规则约束**：
 > 1. 每个子代理必须先读取对应的参考规则文件，仅使用文件中定义的规则进行检查，返回结果中的 ruleId 必须与参考文件中的编号完全一致。
 > 2. 只对变更文件进行检查，未变更的文件不应产生任何违规结果。
-> 3. 每个子代理拥有 Bash(python \*diff_scan.py\*)、Bash(python \*git_diff.py\*)、Read、Grep、Glob 等工具权限。
+> 3. 每个子代理拥有 Bash(node \*diff_scan.mjs\*)、Bash(node \*git_diff.mjs\*)、Read、Grep、Glob 等工具权限。
 
 ### Agent 1：P3C 静态分析（子代理独立完成）
 
 子代理执行 P3C 扫描脚本，独立完成静态分析并返回结果：
 
 ```bash
-python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target {target}
+node <skill-path>/scripts/diff_scan.mjs {repo-path} --source {source} --target {target}
 ```
 
 脚本输出 JSON 格式违规列表，子代理直接透传结果，**不得对脚本结果进行增删或补充其他违规项**。
@@ -50,7 +50,7 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 
 子代理独立执行以下步骤，将以下步骤完全转交给子代理：
 
-1. 执行 `python <skill-path>/scripts/git_diff.py {repo-path} --source {source} --target {target} -- "*.java" ":(exclude)*/src/test/*"` 获取变更的 Java 文件（排除单元测试目录）
+1. 执行 `node <skill-path>/scripts/git_diff.mjs {repo-path} --source {source} --target {target} -- "*.java" ":(exclude)*/src/test/*"` 获取变更的 Java 文件（排除单元测试目录）
 2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
 3. 使用 Read 工具读取 `<skill-path>/references/java-rules.md`，获取完整的规则，不需要增加其他规则
 4. 逐项对照步骤 3 中的规则进行检查
@@ -62,7 +62,7 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 
 子代理独立执行以下步骤，将以下步骤完全转交给子代理：
 
-1. 执行 `python <skill-path>/scripts/git_diff.py {repo-path} --source {source} --target {target} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件
+1. 执行 `node <skill-path>/scripts/git_diff.mjs {repo-path} --source {source} --target {target} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件
 2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
 3. 使用 Read 工具读取 `<skill-path>/references/jcr-rules.md`，获取完整的规则，不需要增加其他规则
 4. 逐项对照步骤 3 中的规则进行检查
@@ -73,7 +73,7 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
 **文件范围**：变更的 ORM XML 文件（如 MyBatis mapper，**不含** `pom.xml`）  
 子代理独立执行以下步骤，将以下步骤完全转交给子代理：
 
-1. 执行 `python <skill-path>/scripts/git_diff.py {repo-path} --source {source} --target {target} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件（如 MyBatis mapper）
+1. 执行 `node <skill-path>/scripts/git_diff.mjs {repo-path} --source {source} --target {target} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件（如 MyBatis mapper）
 2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
 3. 使用 Read 工具读取 `<skill-path>/references/sql-xml-rules.md`，获取完整的规则，不需要增加其他规则
 4. 逐项对照步骤 3 中的规则进行检查
@@ -96,6 +96,6 @@ python <skill-path>/scripts/diff_scan.py {repo-path} --source {source} --target 
    - 是否可合并的评估结论
 4. **保存报告到文件**：
    - 执行 `date +%Y%m%d%H%M%S` 获取当前时间戳（格式：年月日时分秒，如 `20260312143025`）
-   - 在 `{repo-path}` 下创建目录：`mkdir -p {repo-path}/data/{timestamp}`
+   - 在 `{repo-path}` 下创建目录：`mkdir -p {repo-path}/data/ai-code-review/{timestamp}`
    - 使用 Write 工具将报告保存到：`{repo-path}/data/ai-code-review/{timestamp}/代码审查报告.md`
    - 告知用户报告已保存的完整路径
