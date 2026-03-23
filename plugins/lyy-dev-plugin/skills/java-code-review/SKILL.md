@@ -1,6 +1,6 @@
 ---
 name: java-code-review
-description: 对已有的 Java 代码进行审查，以确保其可重复使用性、质量和效率，然后生成审查报告。当用户提到代码审查、review、code review、代码检查、合并前审查、MR 审查、PR 审查、代码质量检查、P3C 检查、Java 规范检查时，应使用此 skill。即使用户只是说"帮我看看代码"或"检查一下改动"，只要上下文是 Java 项目，都应触发此 skill。
+description: 对已有的 Java 代码进行审查，以确保其可重复使用性、质量和效率，然后生成审查报告。当用户提到代码审查、review、代码检查、合并前审查、MR 审查、PR 审查、代码质量检查、P3C 检查、Java 规范检查时，应使用此 skill。即使用户只是说"帮我看看代码"或"检查一下改动"，只要上下文是 Java 项目，都应触发此 skill。
 allowed-tools: Bash(git rev-parse:*), Bash(git show-ref:*), Bash(node:*), AskUserQuestion, Agent, Read, Grep, Glob
 ---
 
@@ -24,32 +24,59 @@ allowed-tools: Bash(git rev-parse:*), Bash(git show-ref:*), Bash(node:*), AskUse
 
 ## 阶段2：并行启动 4 个 Review Agents
 
-使用 Agent tool 在一条消息中同时启动 4 个代理（`subagent_type: "general-purpose"`），每个代理独立完成各自的检查任务并返回结果，主 Agent 不参与具体的检查过程，仅负责收集结果。
+使用 Agent tool 在一条消息中同时启动 4 个代理（`subagent_type: "general-purpose"`），每个代理独立完成各自的检查任务并返回结果，主 Agent 不参与具体的检查过程，仅负责收集结果。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
 
 每个子代理返回的结果是 JSON 数组，格式遵循 [assets/example-agent-output.md](assets/example-agent-output.md) 中定义的 schema。无问题时返回空数组 `[]`。
 
 > **规则约束**：
 > 1. 每个子代理必须先读取对应的参考规则文件，仅使用文件中定义的规则进行检查，返回结果中的 ruleId 必须与参考文件中的编号完全一致。
 > 2. 只对变更文件进行检查，未变更的文件不应产生任何违规结果。
+> 3. 每个子代理拥有 Bash(node \*diff_scan.mjs\*)、Bash(node \*git_diff.mjs\*)、Read、Grep、Glob 等工具权限。
 
+### Agent 1：P3C 静态分析（子代理独立完成）
 
-启动每个子代理时，读取对应的插件级 agent 指令文件（位于 `<plugin-path>/agents/` 目录），将文件内容作为 prompt 的核心部分，并将 `{source}`、`{target}`、`{repo-path}`、`{skill-path}` 替换为实际值后传递给子代理。
+子代理执行 P3C 扫描脚本，独立完成静态分析并返回结果：
 
-### Agent 1：P3C 静态分析
+```bash
+node <skill-path>/scripts/diff_scan.mjs {repo-path} --source {source} --target {target}
+```
 
-指令文件：`<skill-path>/agents/p3c-analyzer.md`
+脚本输出 JSON 格式违规列表，子代理直接透传结果，**不得对脚本结果进行增删或补充其他违规项**。
 
-### Agent 2：Java 规范检查
+### Agent 2：Java规范检查（子代理独立完成）
 
-指令文件：`<skill-path>/agents/java-standards-reviewer.md`
+**文件范围**：所有变更的 `.java` 文件（排除单元测试目录）
 
-### Agent 3：配置文件检查
+子代理独立执行以下步骤，将以下步骤完全转交给子代理：
 
-指令文件：`<skill-path>/agents/config-reviewer.md`
+1. 执行 `node <skill-path>/scripts/git_diff.mjs {repo-path} --source {source} --target {target} -- "*.java" ":(exclude)*/src/test/*"` 获取变更的 Java 文件（排除单元测试目录）
+2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
+3. 使用 Read 工具读取 `<skill-path>/references/java-rules.md`，获取完整的规则，不需要增加其他规则
+4. 逐项对照步骤 3 中的规则进行检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
-### Agent 4：数据库 XML 检查
+### Agent 3：配置文件检查（子代理独立完成）
 
-指令文件：`<skill-path>/agents/db-xml-reviewer.md`
+**文件范围**：变更的配置文件（`.yml`、`.yaml`、`.properties`、`.sql`、`.sh` 等，**不含** `.java`、`.xml`、`.md`）  
+
+子代理独立执行以下步骤，将以下步骤完全转交给子代理：
+
+1. 执行 `node <skill-path>/scripts/git_diff.mjs {repo-path} --source {source} --target {target} -- ":(exclude)*.java" ":(exclude)*.xml" ":(exclude)*.md"` 获取变更的配置文件
+2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
+3. 使用 Read 工具读取 `<skill-path>/references/jcr-rules.md`，获取完整的规则，不需要增加其他规则
+4. 逐项对照步骤 3 中的规则进行检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
+
+### Agent 4：数据库 XML 检查（子代理独立完成）
+
+**文件范围**：变更的 ORM XML 文件（如 MyBatis mapper，**不含** `pom.xml`）  
+子代理独立执行以下步骤，将以下步骤完全转交给子代理：
+
+1. 执行 `node <skill-path>/scripts/git_diff.mjs {repo-path} --source {source} --target {target} -- "*.xml" ":(exclude)*pom.xml"` 获取变更的 ORM XML 文件（如 MyBatis mapper）
+2. 若步骤 1 的结果为空，跳过后续检查，返回 `[]`
+3. 使用 Read 工具读取 `<skill-path>/references/sql-xml-rules.md`，获取完整的规则，不需要增加其他规则
+4. 逐项对照步骤 3 中的规则进行检查
+5. 返回检查报告，格式参考 [assets/example-agent-output.md](assets/example-agent-output.md)
 
 ## 阶段3：汇总输出并保存审查报告
 
