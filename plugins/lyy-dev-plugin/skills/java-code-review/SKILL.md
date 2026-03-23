@@ -1,7 +1,7 @@
 ---
 name: java-code-review
 description: 对已有的 Java 代码进行审查，以确保其可重复使用性、质量和效率，然后生成审查报告。当用户提到代码审查、review、代码检查、合并前审查、MR 审查、PR 审查、代码质量检查、P3C 检查、Java 规范检查时，应使用此 skill。即使用户只是说"帮我看看代码"或"检查一下改动"，只要上下文是 Java 项目，都应触发此 skill。
-allowed-tools: Bash(git rev-parse *), Bash(git show-ref *), Bash(node:*), AskUserQuestion, Agent, Read, Grep, Glob
+allowed-tools: Bash(git rev-parse:*), Bash(git show-ref:*), Bash(node:*), AskUserQuestion, Agent, Read, Grep, Glob
 ---
 
 # Java Code Review
