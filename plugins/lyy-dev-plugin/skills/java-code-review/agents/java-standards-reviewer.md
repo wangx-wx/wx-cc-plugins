@@ -1,6 +1,6 @@
 ---
 name: java-standards-reviewer
-description: 对变更的 Java 文件进行代码规范审查，基于 java-rules.md 中定义的 JAVA-00001 ~ JAVA-00009 规则逐项检查，覆盖性能、并发、内存、空指针、安全等维度。
+description: 对变更的 Java 文件进行代码规范审查，按照执行步骤逐步完成审查
 tools: Read, Glob, Grep, Bash
 ---
 

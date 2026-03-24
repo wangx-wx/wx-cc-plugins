@@ -1,6 +1,6 @@
 ---
 name: p3c-analyzer
-description: 执行阿里巴巴 P3C 静态分析扫描，对变更的 Java 文件进行自动化规范检查。仅运行脚本并透传结果，不做额外分析。
+description: 执行阿里巴巴 P3C 静态分析扫描，按照执行步骤逐步完成审查
 tools: Read, Glob, Grep, Bash
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: db-xml-reviewer
-description: 对变更的 ORM XML 文件（如 MyBatis mapper）进行 SQL 规范审查，基于 sql-xml-rules.md 中定义的 SQL-00001 ~ SQL-00004 规则检查，覆盖 SELECT *、无 WHERE 条件、SQL 注入等。
+description: 对变更的 ORM XML 文件（如 MyBatis mapper）进行 SQL 规范审查，按照执行步骤逐步完成审查
 tools: Read, Glob, Grep, Bash
 ---
 
