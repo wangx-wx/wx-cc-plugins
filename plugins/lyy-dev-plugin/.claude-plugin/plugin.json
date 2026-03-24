@@ -13,10 +13,10 @@
     ],
     "agents": [
         "./agents/code-reviewer.md",
-        "./skills/agents/config-review.md",
-        "./skills/agents/db-xml-reviewer.md",
-        "./skills/agents/java-standards-reviewer.md",
-        "./skills/agents/p3c-analyzer.md"
+        "./skills/java-code-review/agents/config-review.md",
+        "./skills/java-code-review/agents/db-xml-reviewer.md",
+        "./skills/java-code-review/agents/java-standards-reviewer.md",
+        "./skills/java-code-review/agents/p3c-analyzer.md"
     ],
     "mcpServers": "./mcp.json",
     "skills": [
