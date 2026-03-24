@@ -27,5 +27,8 @@
         "./skills/md-check",
         "./skills/pua",
         "./skills/aaa"
+    ],
+    "commands":[
+        "./skills/java-code-review/commands/readme.md"
     ]
 }
