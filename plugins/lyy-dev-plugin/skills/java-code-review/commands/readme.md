@@ -1,6 +1,7 @@
-# Java-Code-Review Skills 介绍
-
-基于 Claude Code 的 Java 代码审查 Skill，通过多 Agent 并行架构对分支变更进行多维度自动化审查，生成结构化的审查报告。
+---
+name: readme
+description: Java-Code-Review Skills使用方法介绍，介绍推荐配置
+---
 
 ## 使用方式
 
