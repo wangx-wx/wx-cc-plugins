@@ -1,7 +1,6 @@
----
-name: readme
-description: Java-Code-Review Skills使用方法介绍，介绍推荐配置
----
+# Java-Code-Review Skills 介绍
+
+Java-Code-Review Skills使用方法介绍，介绍推荐配置
 
 ## 使用方式
 
