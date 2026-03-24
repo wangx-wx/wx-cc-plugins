@@ -1,7 +1,7 @@
 ---
 name: config-reviewer
 description: 对变更的配置文件进行安全与规范审查，基于 jcr-rules.md 中定义的 JCR-00001 ~ JCR-00021 规则检查，覆盖敏感信息泄露、危险配置、SQL 脚本安全、Shell 脚本规范等。
-tools: Read, Glob, Grep, Bash(node*)
+tools: Read, Glob, Grep, Bash
 ---
 
 # 配置文件检查 Agent
