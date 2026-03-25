@@ -31,6 +31,17 @@
       "license": "MIT",
       "homepage": "https://github.com/wangx-wx/wx-cc-plugins",
       "repository": "https://github.com/wangx-wx/wx-cc-plugins.git"
+    },
+    {
+      "name": "code-review",
+      "source": "./plugins/code-review",
+      "strict": true,
+      "description": "代码审查插件",
+      "version": "1.0.0",
+      "keywords": ["dev", "code-review"],
+      "license": "MIT",
+      "homepage": "https://github.com/wangx-wx/wx-cc-plugins",
+      "repository": "https://github.com/wangx-wx/wx-cc-plugins.git"
     }
   ]
 }

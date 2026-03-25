@@ -1,6 +1,6 @@
 {
-    "name": "lyy-dev-plugin",
-    "description": "日常开发常见插件",
+    "name": "code-review",
+    "description": "Java代码审查插件，提供代码审查功能，支持P3C、代码规范检查等",
     "version": "1.0.0",
     "author": {
         "name": "wangx"
@@ -9,17 +9,15 @@
     "license": "MIT",
     "keywords": [
         "dev",
-        "常用插件"
+        "code-review"
     ],
     "agents": [
     ],
     "mcpServers": "./mcp.json",
     "skills": [
-        "./skills/skill-creator",
-        "./skills/mcp-builder",
-        "./skills/md-check",
-        "./skills/pua"
+        "./skills/java-code-review"
     ],
     "commands":[
+        "./commands/readme.md"
     ]
 }
