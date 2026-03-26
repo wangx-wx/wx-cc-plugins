@@ -25,7 +25,7 @@ allowed-tools: Bash(git rev-parse:*), Bash(git show-ref:*), Bash, AskUserQuestio
 
 ## 阶段2：并行启动 4 个 Review Agents
 
-使用 Agent tool 在一条消息中同时启动 4 个代理（`subagent_type: "Explore⁠"`），每个代理独立完成各自的检查任务并返回结果，主 Agent 不参与具体的检查过程，仅负责收集结果。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
+使用 Agent tool 在一条消息中同时启动 4 个代理（`subagent_type: "general-purpose"`），每个代理独立完成各自的检查任务并返回结果，主 Agent 不参与具体的检查过程，仅负责收集结果。在 prompt 中将 `{source}`、`{target}`、`{repo-path}` 完整传递给每个子代理。
 
 每个子代理返回的结果是 JSON 数组，格式遵循 [assets/example-agent-output.md](assets/example-agent-output.md) 中定义的 schema。无问题时返回空数组 `[]`。
 
