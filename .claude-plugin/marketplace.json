@@ -42,6 +42,17 @@
       "license": "MIT",
       "homepage": "https://github.com/wangx-wx/wx-cc-plugins",
       "repository": "https://github.com/wangx-wx/wx-cc-plugins.git"
+    },
+    {
+      "name": "office-plugin",
+      "source": "./plugins/office-plugin",
+      "strict": true,
+      "description": "代码审查插件",
+      "version": "1.0.0",
+      "keywords": ["office", "pdf", "xlsx", "docx", "pptx"],
+      "license": "MIT",
+      "homepage": "https://github.com/wangx-wx/wx-cc-plugins",
+      "repository": "https://github.com/wangx-wx/wx-cc-plugins.git"
     }
   ]
 }

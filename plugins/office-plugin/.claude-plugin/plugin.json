@@ -1,0 +1,23 @@
+{
+    "name": "office-plugin",
+    "description": "办公skills集合",
+    "version": "1.0.0",
+    "author": {
+        "name": "wangx"
+    },
+    "repository": "https://github.com/wangx-wx/wx-cc-plugins",
+    "license": "MIT",
+    "keywords": [
+        "office",
+        "ppt",
+        "xlsx",
+        "docs",
+        "pdf"
+    ],
+    "skills": [
+      "./skills/docx",
+      "./skills/pdf",
+      "./skills/pptx",
+      "./skills/xlsx"
+    ]
+}
