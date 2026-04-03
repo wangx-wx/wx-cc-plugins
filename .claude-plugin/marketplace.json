@@ -53,6 +53,17 @@
       "license": "MIT",
       "homepage": "https://github.com/wangx-wx/wx-cc-plugins",
       "repository": "https://github.com/wangx-wx/wx-cc-plugins.git"
+    },
+    {
+      "name": "perfect-plugin",
+      "source": "./plugins/perfect-plugin",
+      "strict": true,
+      "description": "官方完美插件",
+      "version": "1.0.0",
+      "keywords": ["office", "pdf", "xlsx", "docx", "pptx"],
+      "license": "MIT",
+      "homepage": "https://github.com/wangx-wx/wx-cc-plugins",
+      "repository": "https://github.com/wangx-wx/wx-cc-plugins.git"
     }
   ]
 }
