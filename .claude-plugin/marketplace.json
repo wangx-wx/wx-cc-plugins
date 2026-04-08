@@ -64,6 +64,17 @@
       "license": "MIT",
       "homepage": "https://github.com/wangx-wx/wx-cc-plugins",
       "repository": "https://github.com/wangx-wx/wx-cc-plugins.git"
+    },
+    {
+      "name": "adp-plugin",
+      "source": "./plugins/adp-plugin",
+      "strict": true,
+      "description": "腾讯云智能体插件",
+      "version": "1.0.0",
+      "keywords": ["adp", "knowledge-search"],
+      "license": "MIT",
+      "homepage": "https://github.com/wangx-wx/wx-cc-plugins",
+      "repository": "https://github.com/wangx-wx/wx-cc-plugins.git"
     }
   ]
 }

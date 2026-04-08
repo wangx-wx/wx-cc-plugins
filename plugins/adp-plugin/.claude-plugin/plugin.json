@@ -1,0 +1,21 @@
+{
+    "name": "adp-plugin",
+    "description": "腾讯云智能体平台",
+    "version": "1.0.0",
+    "author": {
+        "name": "wangx"
+    },
+    "repository": "https://github.com/wangx-wx/wx-cc-plugins",
+    "license": "MIT",
+    "keywords": [
+        "adp",
+        "knowledge-search"
+    ],
+    "agents": [
+    ],
+    "skills": [
+        "./skills/adp-search-knowledge"
+    ],
+    "commands":[
+    ]
+}
