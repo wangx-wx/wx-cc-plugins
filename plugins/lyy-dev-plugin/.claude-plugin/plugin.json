@@ -16,7 +16,8 @@
     "mcpServers": "./mcp.json",
     "skills": [
         "./skills/md-check",
-        "./skills/pua"
+        "./skills/pua",
+        "./skills/web-access"
     ],
     "commands":[
     ]
